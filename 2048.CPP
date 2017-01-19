@@ -6,6 +6,11 @@
 #include<time.h>       //For randomize
 #include<stdlib.h>     //For random
 #include<math.h>       //For ceil
+#include<string.h>     //For strcpy
+
+int BKCOLOR=0;
+int GRIDBG=8;
+int GRIDBORDER=15;
 
 class tile
 {
@@ -18,8 +23,26 @@ class tile
 	int bkcolor;
 	int valid_value;
 	int calColor()
-	{ /* if(val==0) return default bkcolor */
-	return 1;}
+	{
+		if(value==0)
+			return GRIDBG;
+		if(value%256==0)
+			return 1;  //BLUE
+		if(value%128==0)
+			return 13; //LIGHTMAGENTA
+		if(value%64==0)
+			return 12; //LIGHTRED
+		if(value%32==0)
+			return 11; //LIGHTCYAN
+		if(value%16==0)
+			return 10; //LIGHTGREEN
+		if(value%8==0)
+			return 9;  //LIGHTBLUE
+		if(value%4==0)
+			return 2;  //GREEN
+		else
+			return 3;  //CYAN
+	}
 	tile(){}
 	void ini(int left,int top,int right,int bottom)
 	{
@@ -29,15 +52,18 @@ class tile
 		this->bottom=bottom;
 		this->value=0;
 		valid_value=0;
-		bkcolor=calColor();
+		bkcolor=GRIDBG;
 		rectangle(left,top,right,bottom);
+		int x=(left+right)/2;
+		int y=(top+bottom)/2;
+		setfillstyle(1,bkcolor);
+		floodfill(x,y,GRIDBORDER);
 	}
 	void copy(tile t)
 	{
 		this->value      =t.value;
 		this->valid_value=t.valid_value;
 		this->bkcolor    =t.bkcolor;
-		//plot();
 	}
 	void validate(int value)
 	{
@@ -50,7 +76,7 @@ class tile
 	{
 		value=0;
 		valid_value=0;
-		bkcolor=calColor();
+		bkcolor=GRIDBG;
 	}
 	void addVal()
 	{
@@ -59,17 +85,17 @@ class tile
 	}
 	void plot()
 	{
+		rectangle(left,top,right,bottom);
 		int x=(left+right)/2;
 		int y=(top+bottom)/2;
-		if (value==0)
-		    outtextxy(x,y,"hey");
-		else
+		setfillstyle(1,bkcolor);
+		floodfill(x,y,GRIDBORDER);
+		if(valid_value==1)
 		{
-		  char v[10];
-		  itoa(value,v,10);
-		  outtextxy(x,y,v);
+			char v[10];
+			itoa(value,v,10);
+			outtextxy(x,y,v);
 		}
-
 	}
 	void display()
 	{
@@ -81,13 +107,12 @@ void show(tile **arr,int n)
    for(int i=0;i<n;++i)
        for(int j=0;j<n;++j)
 	   arr[i][j].plot();
-
 }
 void main()
 {
 	clrscr();
 	//Key Configurations
-	char up='u',down='s',left='a',right='d',undo='u',quit='q',choice;
+	char up='w',down='s',left='a',right='d',undo='u',quit='q',choice;
 	int n=4,i,j,k;
 	do
 	{
@@ -115,38 +140,49 @@ void main()
 	gotoxy(15,15);
 	cout<<"Press any key to start";
 	getch();
-	//Game start
+
+	//Game window appears
 	int gd=DETECT,gm;
 	initgraph(&gd,&gm,"c:/turboc3/bgi");
+	setbkcolor(BKCOLOR);
+	/* Border */
 	int maxx=getmaxx();
 	int maxy=getmaxy();
-	setbkcolor(7);
-	/* Border */
 	int corners[]={0,0,maxx,0,maxx,maxy,0,maxy,0,0};
 	drawpoly(5,corners);
+
 	setlinestyle(0,1,3);
-	setcolor(8);
+	setcolor(GRIDBORDER);
+
 	tile **arr=new tile*[n];
 	for(i=0;i<n;++i)
 		arr[i]=new tile[n];
+
+	tile **backup=new tile*[n];
+	for(i=0;i<n;++i)
+		backup[i]=new tile[n];
+
 	/*Forming grid */
 	int dx=maxx/(n+4);
 	int dy=maxy/(n+4);
 	int start_x=2*dx;
 	int start_y=2*dy;
 	int tile_top,tile_left,tile_right,tile_bottom;
-	//setviewport(start_x,start_y,start_x+n*dx,start_y+n*dy,1);
+	setviewport(start_x,start_y,start_x+n*dx,start_y+n*dy,1);
 	for(i=0;i<n;++i)
 	{
 	    for(j=0;j<n;++j)
 	    {
-		tile_left=start_x+(dx*j);
-		tile_right=tile_left+dx;
-		tile_top=start_y+(dy*i);
-		tile_bottom=tile_top+dy;
-		arr[i][j].ini(tile_left,tile_top,tile_right,tile_bottom);
+			tile_left=(dx*j);
+			tile_right=tile_left+dx;
+			tile_top=(dy*i);
+			tile_bottom=tile_top+dy;
+
+			arr[i][j].ini(tile_left,tile_top,tile_right,tile_bottom);
+			backup[i][j].ini(tile_left,tile_top,tile_right,tile_bottom);
 	    }
 	}
+
 	//Place two tiles of 2 in two random blocks
 	int x1,x2,y1,y2;
 	randomize();
@@ -157,48 +193,240 @@ void main()
 		randomize();
 		y2=random(n);
 		x2=random(n);
-	}while(x1==x2 && y1==y2);
+	}
+	while(x1==x2 && y1==y2);
+	//plot random initial points
 	arr[x1][y1].validate(2);
 	arr[x2][y2].validate(2);
+
+
 	//Logic
-	char input; int count,wall,pos,can_wall;
+	char input; int wall,pos,can_wall,random_i,random_j,random_value;
 	input=getche();
-	if(input==left){
-		cout<<"left";
-		 for(i=0;i<n;++i){
-			//combining tiles
-		    wall=-1;pos=-1;
-		    for(j=0;j<n;++j)
-		    {
-			if(arr[i][j].valid_value)
+	do
+	{
+		if(input==quit)
+			break;
+		else
+		if(input==undo)
+		{
+			//Restore backup array in array
+			for(i=0;i<n;++i)
+				for(j=0;j<n;++j)
+					arr[i][j].copy(backup[i][j]);
+		}
+		else
+		{
+			//If only some valid move 
+			if(input==left || input==right || input==up || input==down)
 			{
-			     can_wall=wall;
-			     for(k=j-1;k>wall;--k)
-			     {
-				if(arr[i][k].valid_value==0)
-				{pos=k;can_wall=k-1;}
-				else if(arr[i][k].value==arr[i][j].value)
-				{pos=k;can_wall=k;break;}
-				//If none of above two then its already at its position
-			     }
-			     /* Now the position is pos either double pos if not empty or replace if empty */
-			     if(pos>=0 && pos!=j)
-			     {
-				if(arr[i][pos].valid_value==0)
-					arr[i][pos].validate(arr[i][j].value);
-				else
-					arr[i][pos].addVal();
-				arr[i][j].invalidate();
-				wall=can_wall;
-			     }
+				//make a backup
+				for(i=0;i<n;++i)
+					for(j=0;j<n;++j)
+						backup[i][j].copy(arr[i][j]);
 			}
-		    }
+			if(input==left)
+			{
+				cout<<"left";
+				for(i=0;i<n;++i)
+				{
+					//combining tiles
+				    wall=-1;
+				    pos=-1;
+				    for(j=0;j<n;++j)
+				    {
+						if(arr[i][j].valid_value)
+						{
+						    can_wall=wall;
+						    for(k=j-1;k>wall;--k)
+						    {
+								if(arr[i][k].valid_value==0)
+								{
+									pos=k;
+									can_wall=k-1;
+								}
+								else   //It hits a block
+								{
+									if(arr[i][k].value==arr[i][j].value)
+									{
+										pos=k;
+										can_wall=k;
+										
+									}
+									break;
+								} 
+								//If none of above two then its already at its position
+						    }
+						    if(pos>=0 && pos!=j)
+						    {
+								if(arr[i][pos].valid_value==0)
+									arr[i][pos].copy(arr[i][j]);
+								else
+									arr[i][pos].addVal();
+								arr[i][j].invalidate();
+								wall=can_wall;
+						    }
+						}
+				    }
+				}
+			}	
+			else
+			if(input==right)
+			{
+				cout<<"right";
+				for(i=0;i<n;++i)
+				{
+					//combining tiles
+				    wall=n;
+				    pos=n;
+				    for(j=n-1;j>=0;--j)
+				    {
+						if(arr[i][j].valid_value)
+						{
+						    can_wall=wall;
+						    for(k=j+1;k<wall;k++)
+						    {
+								if(arr[i][k].valid_value==0)
+								{
+									pos=k;
+									can_wall=k+1;
+								}
+								else  //it hits a block
+								{
+									if(arr[i][k].value==arr[i][j].value)
+									{
+										pos=k;
+										can_wall=k;
+									}
+									break;
+								}
+								//If none of above two then its already at its position
+						    }
+						    if(pos<n && pos!=j)
+						    {
+								if(arr[i][pos].valid_value==0)
+									arr[i][pos].copy(arr[i][j]);
+								else
+									arr[i][pos].addVal();
+								arr[i][j].invalidate();
+								wall=can_wall;
+						    }
+						}
+				    }
+				}
+			}
+			else
+			if(input==up)
+			{
+				cout<<"up";
+				for(j=0;j<n;++j)
+				{
+					//combining tiles
+				    wall=-1;
+				    pos=-1;
+				    for(i=0;i<n;++i)
+				    {
+						if(arr[i][j].valid_value)
+						{
+						    can_wall=wall;
+						    for(k=i-1;k>wall;--k)
+						    {
+								if(arr[k][j].valid_value==0)
+								{
+									pos=k;
+									can_wall=k-1;
+								}
+								else 
+								{
+									if(arr[i][j].value==arr[k][j].value)
+									{
+										pos=k;
+										can_wall=k;
+									}
+									break;
+								}
+								//If none of above two then its already at its position
+						    }
+						    if(pos>=0 && pos!=i)
+						    {
+								if(arr[pos][j].valid_value==0)
+									arr[pos][j].copy(arr[i][j]);
+								else
+									arr[pos][j].addVal();
+								arr[i][j].invalidate();
+								wall=can_wall;
+						    }
+						}
+				    }
+				}
+			}
+			else 
+			if(input==down)
+			{
+				//logic for bottom
+				cout<<"down";
+				for(j=0;j<n;++j)
+				{
+					//combining tiles
+				    wall=n;
+				    pos=n;
+				    for(i=n-1;i>=0;--i)
+				    {
+						if(arr[i][j].valid_value)
+						{
+						    can_wall=wall;
+						    for(k=i+1;k<wall;k++)
+						    {
+								if(arr[k][j].valid_value==0)
+								{
+									pos=k;
+									can_wall=k+1;
+								}
+								else 
+								{
+									if(arr[i][j].value==arr[k][j].value)
+									{
+										pos=k;
+										can_wall=k;
+									}
+									break;
+								}
+						    }
+						    if(pos<n && pos!=i)
+						    {
+								if(arr[pos][j].valid_value==0)
+									arr[pos][j].copy(arr[i][j]);
+								else
+									arr[pos][j].addVal();
+								arr[i][j].invalidate();
+								wall=can_wall;
+						    }
+						}
+				    }
+				}
+			}
 		}
 		clearviewport();
 		show(arr,n);
-		getch();
+		if(input==left || input==right || input==up || input==down)
+		{
+			//Generate a new random tile
+			do
+			{
+				randomize();
+				random_i=random(n);
+				random_j=random(n);
+			}
+			while(arr[random_i][random_j].valid_value);
+			randomize();
+			random_value=random(5);
+			if(random_value!=4)
+				random_value=2;
+			arr[random_i][random_j].validate(random_value);
+		}
+		input=getch();	
 	}
-	getch();
+	while(input!=quit);
 	closegraph();
 	getch();
 }
