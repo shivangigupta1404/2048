@@ -5,12 +5,44 @@
 #include<graphics.h>
 #include<time.h>       //For randomize
 #include<stdlib.h>     //For random
-#include<math.h>       //For ceil
-#include<string.h>     //For strcpy
 
 int BKCOLOR=0;
 int GRIDBG=8;
 int GRIDBORDER=15;
+
+//Stores empty locations
+int empty_slots[32];
+int backup_empty_slots[32];
+int backup_empty_size;
+int size=0;
+
+void add_slot(int i,int j)
+{
+	empty_slots[size++]=i;
+	empty_slots[size++]=j;
+}
+
+void remove(int index)
+{
+	for(int i=index+1;i<size;++i)
+		empty_slots[i-1]=empty_slots[i];
+	size--;
+}
+
+void remove_slot(int i,int j)
+{
+	if(i<j)
+	{
+		remove(i);remove(j-1);
+	}
+	else
+	if(j<i)
+	{
+		remove(j);remove(i-1);
+	}
+	else
+		remove(i);
+}
 
 class tile
 {
@@ -94,7 +126,7 @@ class tile
 		{
 			char v[10];
 			itoa(value,v,10);
-			outtextxy(x,y,v);
+			outtextxy(x,y-20,v);
 		}
 	}
 	void display()
@@ -102,12 +134,14 @@ class tile
 		cout<<"\n"<<"left="<<left<<"\tright="<<right<<"\ttop="<<top<<"\tbottom="<<bottom;
 	}
 };
+
 void show(tile **arr,int n)
 {
    for(int i=0;i<n;++i)
        for(int j=0;j<n;++j)
 	   arr[i][j].plot();
 }
+
 void main()
 {
 	clrscr();
@@ -145,24 +179,35 @@ void main()
 	int gd=DETECT,gm;
 	initgraph(&gd,&gm,"c:/turboc3/bgi");
 	setbkcolor(BKCOLOR);
+	settextstyle(1,0,3);
+
+	cout<<"\n   KEYS";
+	cout<<"\n  ----------";
+	cout<<"\n  QUIT  : "<<quit;
+	cout<<"\n  UNDO  : "<<undo;
+	cout<<"\n  UP    : "<<up;
+	cout<<"\n  DOWN  : "<<down;
+	cout<<"\n  LEfT  : "<<left;
+	cout<<"\n  RIGHT : "<<right;
 	/* Border */
 	int maxx=getmaxx();
 	int maxy=getmaxy();
 	int corners[]={0,0,maxx,0,maxx,maxy,0,maxy,0,0};
 	drawpoly(5,corners);
 
-	setlinestyle(0,1,3);
-	setcolor(GRIDBORDER);
-
+	//Store values in grid
 	tile **arr=new tile*[n];
 	for(i=0;i<n;++i)
 		arr[i]=new tile[n];
 
+	//Store values in previous state
 	tile **backup=new tile*[n];
 	for(i=0;i<n;++i)
 		backup[i]=new tile[n];
 
-	/*Forming grid */
+	/*initialising grid */
+	setlinestyle(0,1,3);
+	setcolor(GRIDBORDER);
 	int dx=maxx/(n+4);
 	int dy=maxy/(n+4);
 	int start_x=2*dx;
@@ -177,57 +222,59 @@ void main()
 			tile_right=tile_left+dx;
 			tile_top=(dy*i);
 			tile_bottom=tile_top+dy;
-
 			arr[i][j].ini(tile_left,tile_top,tile_right,tile_bottom);
 			backup[i][j].ini(tile_left,tile_top,tile_right,tile_bottom);
+			add_slot(i,j);
 	    }
 	}
 
 	//Place two tiles of 2 in two random blocks
-	int x1,x2,y1,y2;
-	randomize();
-	x1=random(n);
-	y1=random(n);
-	do
+	int x,y,rand_index;
+	for(i=0;i<2;++i)
 	{
 		randomize();
-		y2=random(n);
-		x2=random(n);
+		rand_index=random(size/2);
+		x=2*rand_index;
+		y=x+1;
+		arr[empty_slots[x]][empty_slots[y]].validate(2);
+		remove_slot(x,y);
 	}
-	while(x1==x2 && y1==y2);
-	//plot random initial points
-	arr[x1][y1].validate(2);
-	arr[x2][y2].validate(2);
-
 
 	//Logic
-	char input; int wall,pos,can_wall,random_i,random_j,random_value;
+	char input; 
+	int wall,pos,can_wall,random_i,random_j,random_value;
 	input=getche();
 	do
 	{
 		if(input==quit)
 			break;
 		else
-		if(input==undo)
+		if(input==undo)  //Restore backup
 		{
-			//Restore backup array in array
 			for(i=0;i<n;++i)
 				for(j=0;j<n;++j)
 					arr[i][j].copy(backup[i][j]);
+			for(i=0;i<backup_empty_size;++i)
+				empty_slots[i]=backup_empty_slots[i];
+			size=backup_empty_size;
+
 		}
-		else
+		else //If only some valid move 
 		{
-			//If only some valid move 
+			//backup empty slots and grid status
 			if(input==left || input==right || input==up || input==down)
 			{
-				//make a backup
 				for(i=0;i<n;++i)
 					for(j=0;j<n;++j)
 						backup[i][j].copy(arr[i][j]);
+				
+				for(i=0;i<size;++i)
+					backup_empty_slots[i]=empty_slots[i];
+				backup_empty_size=size;
 			}
+
 			if(input==left)
 			{
-				cout<<"left";
 				for(i=0;i<n;++i)
 				{
 					//combining tiles
@@ -273,7 +320,6 @@ void main()
 			else
 			if(input==right)
 			{
-				cout<<"right";
 				for(i=0;i<n;++i)
 				{
 					//combining tiles
@@ -318,7 +364,6 @@ void main()
 			else
 			if(input==up)
 			{
-				cout<<"up";
 				for(j=0;j<n;++j)
 				{
 					//combining tiles
@@ -364,7 +409,6 @@ void main()
 			if(input==down)
 			{
 				//logic for bottom
-				cout<<"down";
 				for(j=0;j<n;++j)
 				{
 					//combining tiles
@@ -408,25 +452,29 @@ void main()
 		}
 		clearviewport();
 		show(arr,n);
+
+		//Generate a new random tile
 		if(input==left || input==right || input==up || input==down)
 		{
-			//Generate a new random tile
-			do
-			{
-				randomize();
-				random_i=random(n);
-				random_j=random(n);
-			}
-			while(arr[random_i][random_j].valid_value);
+			size=0;
+			for(i=0;i<n;++i)
+				for(j=0;j<n;++j)
+					if(arr[i][j].valid_value==0)
+						add_slot(i,j);
+
+			randomize();
+			rand_index=random(size/2);
+			x=2*rand_index;
+			y=x+1;
 			randomize();
 			random_value=random(5);
 			if(random_value!=4)
 				random_value=2;
-			arr[random_i][random_j].validate(random_value);
+			arr[empty_slots[x]][empty_slots[y]].validate(random_value);
+			remove_slot(x,y);
 		}
-		input=getch();	
+		input=getch();
 	}
 	while(input!=quit);
 	closegraph();
-	getch();
 }
