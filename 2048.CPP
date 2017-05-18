@@ -1,47 +1,34 @@
 #include<iostream.h>
 #include<stdio.h>
 #include<conio.h>
-#include<iomanip.h>    //For setw
 #include<graphics.h>
 #include<time.h>       //For randomize
-#include<stdlib.h>     //For random
+#include<stdlib.h>     //For random,itoa
 
-int BKCOLOR=0;
-int GRIDBG=8;
-int GRIDBORDER=15;
+#define arrow_up 72
+#define arrow_down 80
+#define arrow_left 75
+#define arrow_right 77
+#define quit 27
+#define BKCOLOR 0
+#define GRIDBG 8
+#define GRIDBORDER 15
 
 //Stores empty locations
-int empty_slots[32];
-int backup_empty_slots[32];
+int *empty_slots;
+int *backup_empty_slots;
 int backup_empty_size;
 int size=0;
 
-void add_slot(int i,int j)
-{
+void add_slot(int i,int j){
 	empty_slots[size++]=i;
 	empty_slots[size++]=j;
 }
 
-void remove(int index)
-{
-	for(int i=index+1;i<size;++i)
-		empty_slots[i-1]=empty_slots[i];
-	size--;
-}
-
-void remove_slot(int i,int j)
-{
-	if(i<j)
-	{
-		remove(i);remove(j-1);
-	}
-	else
-	if(j<i)
-	{
-		remove(j);remove(i-1);
-	}
-	else
-		remove(i);
+void remove_slot(int index,int j){
+	for(int i=j+1;i<size;++i)
+		empty_slots[i-2]=empty_slots[i];
+	size=size-2;
 }
 
 class tile
@@ -54,8 +41,7 @@ class tile
 	int value;
 	int bkcolor;
 	int valid_value;
-	int calColor()
-	{
+	int calColor(){
 		if(value==0)
 			return GRIDBG;
 		if(value%256==0)
@@ -76,8 +62,7 @@ class tile
 			return 3;  //CYAN
 	}
 	tile(){}
-	void ini(int left,int top,int right,int bottom)
-	{
+	void ini(int left,int top,int right,int bottom){
 		this->left=left;
 		this->top =top;
 		this->right=right;
@@ -91,32 +76,27 @@ class tile
 		setfillstyle(1,bkcolor);
 		floodfill(x,y,GRIDBORDER);
 	}
-	void copy(tile t)
-	{
+	void copy(tile t){
 		this->value      =t.value;
 		this->valid_value=t.valid_value;
 		this->bkcolor    =t.bkcolor;
 	}
-	void validate(int value)
-	{
+	void validate(int value){
 		this->value=value;
 		valid_value=1;
 		bkcolor=calColor();
 		plot();
 	}
-	void invalidate()
-	{
+	void invalidate(){
 		value=0;
 		valid_value=0;
 		bkcolor=GRIDBG;
 	}
-	void addVal()
-	{
+	void addVal(){
 		value*=2;
 		bkcolor=calColor();
 	}
-	void plot()
-	{
+	void plot(){
 		rectangle(left,top,right,bottom);
 		int x=(left+right)/2;
 		int y=(top+bottom)/2;
@@ -129,66 +109,28 @@ class tile
 			outtextxy(x,y-20,v);
 		}
 	}
-	void display()
-	{
-		cout<<"\n"<<"left="<<left<<"\tright="<<right<<"\ttop="<<top<<"\tbottom="<<bottom;
-	}
 };
 
-void show(tile **arr,int n)
-{
+void show(tile **arr,int n){
    for(int i=0;i<n;++i)
        for(int j=0;j<n;++j)
-	   arr[i][j].plot();
+	   	arr[i][j].plot();
 }
 
 void main()
 {
 	clrscr();
 	//Key Configurations
-	char up='w',down='s',left='a',right='d',undo='u',quit='q',choice;
+	char undo='u';
 	int n=4,i,j,k;
-	do
-	{
-		gotoxy(17,5);
-		cout<<"KEYS CONFIGURATIONS"<<"\n";
-		cout<<setw(36)<<"  -------------------\n";
-		cout<<setw(17)<<"|"<<setw(8)<<"UP"   <<setw(6)<<"  |   ";
-		up=getche();cout<<setw(4)<<"|\n";
-		cout<<setw(17)<<"|"<<setw(8)<<"DOWN" <<setw(6)<<"  |   ";
-		down=getche();cout<<setw(4)<<"|\n";
-		cout<<setw(17)<<"|"<<setw(8)<<"LEFT" <<setw(6)<<"  |   ";
-		left=getche();cout<<setw(4)<<"|\n";
-		cout<<setw(17)<<"|"<<setw(8)<<"RIGHT"<<setw(6)<<"  |   ";
-		right=getche();cout<<setw(4)<<"|\n";
-		cout<<setw(17)<<"|"<<setw(8)<<"UNDO"<<setw(6)<<"  |   ";
-		undo=getche();cout<<setw(4)<<"|\n";
-		cout<<setw(17)<<"|"<<setw(8)<<"QUIT"<<setw(6)<<"  |   ";
-		quit=getche();cout<<setw(4)<<"|\n";
-		cout<<setw(36)<<"  -------------------\n";
-		gotoxy(15,14);
-		cout<<"Are you sure?(y/n) : ";
-		cin>>choice;
-	}
-	while(choice!='y'&& choice!='Y');
-	gotoxy(15,15);
-	cout<<"Press any key to start";
-	getch();
+	empty_slots=new int[2*n];
+	backup_empty_slots=new int[2*n];
 
 	//Game window appears
 	int gd=DETECT,gm;
 	initgraph(&gd,&gm,"c:/turboc3/bgi");
 	setbkcolor(BKCOLOR);
 	settextstyle(1,0,3);
-
-	cout<<"\n   KEYS";
-	cout<<"\n  ----------";
-	cout<<"\n  QUIT  : "<<quit;
-	cout<<"\n  UNDO  : "<<undo;
-	cout<<"\n  UP    : "<<up;
-	cout<<"\n  DOWN  : "<<down;
-	cout<<"\n  LEfT  : "<<left;
-	cout<<"\n  RIGHT : "<<right;
 	/* Border */
 	int maxx=getmaxx();
 	int maxy=getmaxy();
@@ -197,13 +139,12 @@ void main()
 
 	//Store values in grid
 	tile **arr=new tile*[n];
-	for(i=0;i<n;++i)
-		arr[i]=new tile[n];
-
-	//Store values in previous state
 	tile **backup=new tile*[n];
-	for(i=0;i<n;++i)
+	for(i=0;i<n;++i){
+		arr[i]=new tile[n];
+		//Store values in previous state
 		backup[i]=new tile[n];
+	}
 
 	/*initialising grid */
 	setlinestyle(0,1,3);
@@ -213,15 +154,14 @@ void main()
 	int start_x=2*dx;
 	int start_y=2*dy;
 	int tile_top,tile_left,tile_right,tile_bottom;
+	outtextxy(start_x+10,start_y-50,"Use 'u' for undo");
 	setviewport(start_x,start_y,start_x+n*dx,start_y+n*dy,1);
-	for(i=0;i<n;++i)
-	{
-	    for(j=0;j<n;++j)
-	    {
+	for(i=0;i<n;++i){
+		tile_top=(dy*i);
+		tile_bottom=tile_top+dy;
+	    for(j=0;j<n;++j){
 			tile_left=(dx*j);
 			tile_right=tile_left+dx;
-			tile_top=(dy*i);
-			tile_bottom=tile_top+dy;
 			arr[i][j].ini(tile_left,tile_top,tile_right,tile_bottom);
 			backup[i][j].ini(tile_left,tile_top,tile_right,tile_bottom);
 			add_slot(i,j);
@@ -230,8 +170,7 @@ void main()
 
 	//Place two tiles of 2 in two random blocks
 	int x,y,rand_index;
-	for(i=0;i<2;++i)
-	{
+	for(i=0;i<2;++i){
 		randomize();
 		rand_index=random(size/2);
 		x=2*rand_index;
@@ -241,46 +180,44 @@ void main()
 	}
 
 	//Logic
-	char input; 
+	char input;
 	int wall,pos,can_wall,random_i,random_j,random_value;
 	input=getche();
 	do
 	{
 		if(input==quit)
-			break;
+			exit(0);
 		else
-		if(input==undo)  //Restore backup
-		{
+		if(input==undo){
+			//Restore backup
 			for(i=0;i<n;++i)
 				for(j=0;j<n;++j)
 					arr[i][j].copy(backup[i][j]);
 			for(i=0;i<backup_empty_size;++i)
 				empty_slots[i]=backup_empty_slots[i];
 			size=backup_empty_size;
-
 		}
-		else //If only some valid move 
-		{
+		else{
+			//If only some valid move
 			//backup empty slots and grid status
-			if(input==left || input==right || input==up || input==down)
-			{
+			if(input==arrow_left || input==arrow_right || input==arrow_up || input==arrow_down){
 				for(i=0;i<n;++i)
 					for(j=0;j<n;++j)
 						backup[i][j].copy(arr[i][j]);
-				
+
 				for(i=0;i<size;++i)
 					backup_empty_slots[i]=empty_slots[i];
 				backup_empty_size=size;
 			}
 
-			if(input==left)
+			if(input==arrow_left)
 			{
 				for(i=0;i<n;++i)
 				{
 					//combining tiles
 				    wall=-1;
 				    pos=-1;
-				    for(j=0;j<n;++j)
+				    for(j=1;j<n;++j)
 				    {
 						if(arr[i][j].valid_value)
 						{
@@ -292,16 +229,17 @@ void main()
 									pos=k;
 									can_wall=k-1;
 								}
-								else   //It hits a block
+								else
 								{
+									//It hits a block
 									if(arr[i][k].value==arr[i][j].value)
 									{
 										pos=k;
 										can_wall=k;
-										
+
 									}
 									break;
-								} 
+								}
 								//If none of above two then its already at its position
 						    }
 						    if(pos>=0 && pos!=j)
@@ -316,9 +254,9 @@ void main()
 						}
 				    }
 				}
-			}	
+			}
 			else
-			if(input==right)
+			if(input==arrow_right)
 			{
 				for(i=0;i<n;++i)
 				{
@@ -362,7 +300,7 @@ void main()
 				}
 			}
 			else
-			if(input==up)
+			if(input==arrow_up)
 			{
 				for(j=0;j<n;++j)
 				{
@@ -381,7 +319,7 @@ void main()
 									pos=k;
 									can_wall=k-1;
 								}
-								else 
+								else
 								{
 									if(arr[i][j].value==arr[k][j].value)
 									{
@@ -405,8 +343,8 @@ void main()
 				    }
 				}
 			}
-			else 
-			if(input==down)
+			else
+			if(input==arrow_down)
 			{
 				//logic for bottom
 				for(j=0;j<n;++j)
@@ -426,7 +364,7 @@ void main()
 									pos=k;
 									can_wall=k+1;
 								}
-								else 
+								else
 								{
 									if(arr[i][j].value==arr[k][j].value)
 									{
@@ -452,9 +390,8 @@ void main()
 		}
 		clearviewport();
 		show(arr,n);
-
 		//Generate a new random tile
-		if(input==left || input==right || input==up || input==down)
+		if(input==arrow_left || input==arrow_right || input==arrow_up || input==arrow_down)
 		{
 			size=0;
 			for(i=0;i<n;++i)
@@ -475,6 +412,19 @@ void main()
 		}
 		input=getch();
 	}
-	while(input!=quit);
+	while(size!=0);
+	clearviewport();
+	int score=0;
+	for(i=0;i<n;++i)
+		for(j=0;j<n;++j)
+			score+=arr[i][j].value;
+	char *s;
+	itoa(score,s,10);
+	outtextxy(10,10,"Game Over!!");
+	outtextxy(20,40,"Your Score");
+	outtextxy(50,80,s);
+	getch();
+	getch();
 	closegraph();
+	getch();
 }
