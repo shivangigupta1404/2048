@@ -106,7 +106,7 @@ class tile
 		{
 			char v[10];
 			itoa(value,v,10);
-			outtextxy(x,y-20,v);
+			outtextxy(left+10,y-20,v);
 		}
 	}
 };
